@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase, supabaseConfigured } from "../../lib/supabaseClient";
 
 function mondayOf(date) {
@@ -27,6 +27,27 @@ export default function AddOnlyClient() {
   const [fDays, setFDays] = useState("");
   const [msg, setMsg] = useState({ text: "", type: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [knownEmployees, setKnownEmployees] = useState([]); // [{fio, stop}]
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from("employees")
+      .select("fio, stop")
+      .order("fio", { ascending: true })
+      .then(({ data }) => {
+        if (!cancelled) setKnownEmployees(data || []);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function handleFioSelect(value) {
+    setFFio(value);
+    const match = knownEmployees.find((e) => e.fio.toLowerCase() === value.trim().toLowerCase());
+    if (match && !fStop) setFStop(match.stop || "");
+  }
 
   const weekDates = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -149,10 +170,16 @@ export default function AddOnlyClient() {
             <div>
               <label>ФИО</label>
               <input
+                list="known-fio"
                 value={fFio}
-                onChange={(e) => setFFio(e.target.value)}
+                onChange={(e) => handleFioSelect(e.target.value)}
                 placeholder="Иванов Иван"
               />
+              <datalist id="known-fio">
+                {knownEmployees.map((e) => (
+                  <option value={e.fio} key={e.fio} />
+                ))}
+              </datalist>
             </div>
             <div>
               <label>Остановка</label>
